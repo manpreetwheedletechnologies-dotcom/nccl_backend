@@ -8,8 +8,14 @@ export class User {
     @Prop({ required: true })
     name: string;
 
-    @Prop({ required: true, unique: true })
-    phone: string;
+    @Prop({ required: false, unique: true, sparse: true })
+    phone?: string;
+
+    @Prop({ default: false })
+    is_guest: boolean;
+
+    @Prop({ type: String, default: null })
+    created_by: string;
 
     @Prop()
     email: string;
@@ -60,6 +66,12 @@ export class User {
 
     @Prop()
     team_logo: string;
+
+    @Prop({ unique: true, sparse: true })
+    app_code: string;
+
+    @Prop({ type: String, default: null })
+    current_team_id: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

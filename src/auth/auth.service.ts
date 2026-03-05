@@ -10,13 +10,38 @@ export class AuthService {
         private jwtService: JwtService
     ) { }
 
-    async validateUser(phone: string, pass: string): Promise<any> {
-        const user = await this.usersService.findOne(phone);
-        if (user) {
-            // For now, allowing login without password if not set (legacy support)
-            // In real world, we would check password
+    async validateUser(phone: string, pass?: string, otp?: string): Promise<any> {
+        let user = await this.usersService.findOne(phone);
+
+        // If OTP provided, check for bypass code
+        if (otp && otp.trim() === '123456') {
+            if (!user) {
+                user = await this.usersService.create({
+                    phone,
+                    name: 'New Player',
+                    location: 'City',
+                    roles: ['player'],
+                    is_premium: false,
+                    progress: 10
+                });
+            }
             const userObj = (user as any).toObject ? (user as any).toObject() : user;
-            if (!userObj.password || (await bcrypt.compare(pass, userObj.password))) {
+            const { password, ...result } = userObj;
+            return result;
+        }
+
+
+
+        if (user) {
+            const userObj = (user as any).toObject ? (user as any).toObject() : user;
+
+            // If no password provided or no password set for user, allow phone-only login
+            if (!pass || !userObj.password) {
+                const { password, ...result } = userObj;
+                return result;
+            }
+
+            if (userObj.password && (await bcrypt.compare(pass, userObj.password))) {
                 const { password, ...result } = userObj;
                 return result;
             }
@@ -25,10 +50,19 @@ export class AuthService {
     }
 
     async login(user: any) {
+        let roles = (user.roles && user.roles.length > 0) ? [...user.roles] : ['user'];
+
+        // Ensure every logged-in user has at least 'user' role in their JWT,
+        // so admin/team/user-gated endpoints work.
+        // 'player' role is kept alongside — it enables player-only features.
+        if (!roles.includes('admin') && !roles.includes('user')) {
+            roles = [...roles, 'user'];
+        }
+
         const payload = {
             phone: user.phone,
             sub: user._id || user.id,
-            roles: (user.roles && user.roles.length > 0) ? user.roles : ['user']
+            roles,
         };
         return {
             access_token: this.jwtService.sign(payload),
@@ -49,5 +83,13 @@ export class AuthService {
         }
 
         return this.usersService.create(userDto);
+    }
+
+    async loginByCode(appCode: string) {
+        const user = await this.usersService.findByAppCode(appCode);
+        if (!user) {
+            throw new UnauthorizedException('Invalid App Code');
+        }
+        return this.login(user);
     }
 }

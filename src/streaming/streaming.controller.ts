@@ -4,7 +4,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
-@Controller('api/streaming')
+@Controller('streaming')
 export class StreamingController {
     constructor(private readonly streamingService: StreamingService) { }
 
@@ -15,7 +15,7 @@ export class StreamingController {
 
     @Post()
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('admin', 'team') // Allow admins and teams to create streams
+    @Roles('admin', 'team', 'user') // player excluded — admin, team owner, or regular user can go live
     async createStream(@Body() streamDto: any) {
         return this.streamingService.create(streamDto);
     }

@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
-@Controller('api/store')
+ @Controller('store')
 export class StoreController {
     constructor(private readonly storeService: StoreService) { }
 

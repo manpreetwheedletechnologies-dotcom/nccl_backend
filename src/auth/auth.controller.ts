@@ -1,23 +1,34 @@
-import { Controller, Request, Post, UseGuards, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { LoginDto, RegisterDto, AppCodeLoginDto } from './dto/auth.dto';
 
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
     constructor(private authService: AuthService) { }
 
     @Post('login')
-    async login(@Body() req) {
-        // req should contain phone (and password if we implemented it fully)
-        // We delegate validation to AuthService
-        const user = await this.authService.validateUser(req.phone, req.password);
+    async login(@Body() loginDto: LoginDto) {
+        const user = await this.authService.validateUser(loginDto.phone, loginDto.password, loginDto.otp);
         if (!user) {
-            return { status: 401, message: 'Invalid credentials' };
+            throw new UnauthorizedException('Incorrect mobile number or credentials');
         }
         return this.authService.login(user);
     }
 
+    @Post('login-code')
+    async loginByCode(@Body() loginCodeDto: AppCodeLoginDto) {
+        return this.authService.loginByCode(loginCodeDto.code);
+    }
+
     @Post('register')
-    async register(@Body() createUserDto: any) {
-        return this.authService.register(createUserDto);
+    async register(@Body() registerDto: RegisterDto) {
+        return this.authService.register(registerDto);
+    }
+
+    @Post('logout')
+    async logout() {
+        // Stateless JWT — token invalidation is handled client-side.
+        // This endpoint exists for client to signal logout (future: revoke tokens in DB).
+        return { success: true, message: 'Logged out successfully' };
     }
 }

@@ -1,6 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 
@@ -17,12 +19,24 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { StreamingModule } from './streaming/streaming.module';
 import { PlayersModule } from './players/players.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
     imports: [
         ConfigModule.forRoot({
             isGlobal: true,
         }),
+        ServeStaticModule.forRoot({
+            rootPath: join(process.cwd(), 'uploads'),
+            serveRoot: '/uploads',
+            exclude: ['/api/(.*)'],
+        }),
+        ThrottlerModule.forRoot([{
+            ttl: 60000,
+            limit: 100, // 100 requests per minute
+        }]),
         MongooseModule.forRootAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => ({
@@ -45,8 +59,15 @@ import { PlayersModule } from './players/players.module';
         SubscriptionModule,
         StreamingModule,
         PlayersModule,
+        UploadsModule,
     ],
     controllers: [],
     providers: [],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+    configure(consumer: MiddlewareConsumer) {
+        consumer
+            .apply(LoggerMiddleware)
+            .forRoutes('*');
+    }
+}
